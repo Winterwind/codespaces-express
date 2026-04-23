@@ -10,18 +10,20 @@
         </linearGradient>
       </defs>
     </svg>
-    <span class="brand-name">TaskAlloc</span>
+    <span class="brand-name">TaskSpace</span>
   </div>
 
   <div class="auth-card">
     <h1>Welcome back</h1>
     <p class="auth-subtitle">Sign in to your account to continue</p>
 
+    {{#if error}}<div class="auth-error">{{error}}</div>{{/if}}
+
     <form action="/login" method="POST">
       <div class="form-group">
         <label class="form-label" for="email">Email</label>
         <input class="form-input" type="email" id="email" name="email"
-               placeholder="you@example.com" autocomplete="email" required />
+               placeholder="you@example.com" autocomplete="email" value="{{email}}" required />
       </div>
       <div class="form-group">
         <label class="form-label" for="password">Password</label>

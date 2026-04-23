@@ -286,6 +286,16 @@ body.auth-page {
   margin-bottom: 22px;
 }
 
+.auth-error {
+  background: #fff0f0;
+  border: 1px solid #fbbcbc;
+  color: #c53030;
+  border-radius: var(--radius-sm);
+  padding: 9px 13px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
 .auth-footer {
   text-align: center;
   margin-top: 18px;
