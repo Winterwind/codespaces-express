@@ -1,0 +1,52 @@
+<div class="detail-wrap" style="max-width:680px;">
+  <nav class="breadcrumb">
+    <a href="/profile">Profile</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="/project/{{task.project.id}}">{{task.project.title}}</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="/task/{{task.id}}">Task #{{task.id}}</a>
+    <span class="breadcrumb-sep">/</span>
+    <span>New Solution</span>
+  </nav>
+
+  <div style="margin-bottom:24px;">
+    <h1 style="font-size:20px;font-weight:700;margin-bottom:4px;">Submit a solution</h1>
+    <p class="text-muted text-sm">
+      For task: <a href="/task/{{task.id}}" style="font-weight:600;">{{task.title}}</a>
+    </p>
+  </div>
+
+  {{#if error}}<div class="auth-error" style="margin-bottom:20px;">{{error}}</div>{{/if}}
+
+  <div class="detail-body">
+    <div class="detail-body-content" style="padding:24px;">
+      <form action="/solution" method="POST">
+        <input type="hidden" name="taskId"    value="{{task.id}}" />
+        <input type="hidden" name="projectId" value="{{task.project.id}}" />
+
+        <div class="form-group">
+          <label class="form-label" for="title">Solution Title <span style="color:#e53e3e">*</span></label>
+          <input class="form-input" type="text" id="title" name="title"
+                 placeholder="e.g. Logo Concept A — Geometric Mark"
+                 value="{{title}}" required autofocus />
+        </div>
+
+        <div class="form-group" style="margin-bottom:24px;">
+          <label class="form-label" for="description">
+            Description
+            <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span>
+          </label>
+          <textarea class="form-input" id="description" name="description"
+                    placeholder="Describe your approach, how it addresses the task requirements, any trade-offs, etc."
+                    style="min-height:140px;">{{description}}</textarea>
+        </div>
+
+        <hr class="divider" />
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <a href="/task/{{task.id}}" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Submit Solution</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

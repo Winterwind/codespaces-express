@@ -2,24 +2,26 @@
 
   <!-- Breadcrumb -->
   <nav class="breadcrumb">
-    <a href="/profile">ariandjahed</a>
+    <a href="/profile">Profile</a>
     <span class="breadcrumb-sep">/</span>
-    <a href="/project/1">Brand Refresh 2026</a>
+    <a href="/project/{{task.project.id}}">{{task.project.title}}</a>
     <span class="breadcrumb-sep">/</span>
-    <a href="/project/1">Tasks</a>
+    <a href="/project/{{task.project.id}}">Tasks</a>
     <span class="breadcrumb-sep">/</span>
-    <span>#1</span>
+    <span>#{{task.id}}</span>
   </nav>
 
   <!-- Title Row -->
   <div class="detail-title-row">
-    <h1 class="detail-title">Design new logo — three concepts needed</h1>
-    <span class="badge badge-open">Open</span>
+    <h1 class="detail-title">{{task.title}}</h1>
+    <span class="badge {{#if isOpen}}badge-open{{else}}badge-closed{{/if}}">
+      {{#if isOpen}}Open{{else}}Closed{{/if}}
+    </span>
   </div>
   <div class="detail-meta-line">
-    Task <strong>#1</strong> opened <strong>Apr 14, 2026</strong> by
-    <a href="/profile/ariandjahed">ariandjahed</a>
-    &nbsp;·&nbsp; 2 solutions submitted
+    Task <strong>#{{task.id}}</strong> opened <strong>{{formatDate task.createdAt}}</strong>
+    by <a href="/profile">{{task.creator.username}}</a>
+    &nbsp;·&nbsp; {{solutionCount}} solution{{#gt solutionCount 1}}s{{/gt}}
   </div>
 
   <!-- Main Layout -->
@@ -29,56 +31,53 @@
     <div>
       <div class="detail-body">
         <div class="detail-body-header">
-          <span><strong>ariandjahed</strong> described this task</span>
-          <span>Apr 14, 2026</span>
+          <span><strong>{{task.creator.username}}</strong> described this task</span>
+          <span>{{formatDate task.createdAt}}</span>
         </div>
         <div class="detail-body-content">
-          <p>
-            We need three distinct logo concepts for the Brand Refresh 2026 project.
-            Each concept should explore a different visual direction so that stakeholders
-            have meaningful choices to evaluate.
-          </p>
-          <br/>
-          <p><strong>Requirements:</strong></p>
-          <ul style="margin-left:20px;margin-top:8px;line-height:2;">
-            <li>At least one concept should be a wordmark or logotype</li>
-            <li>At least one concept should include a standalone symbol/mark</li>
-            <li>All concepts must work in both color and monochrome</li>
-            <li>Deliver as PNG + SVG at minimum</li>
-          </ul>
-          <br/>
-          <p>
-            Please attach your files to your solution so all contributors can review them.
-            The project owner will approve the winning concept once the team has weighed in.
-          </p>
+          {{#if task.description}}
+            {{task.description}}
+          {{else}}
+            <span class="text-muted">No description provided.</span>
+          {{/if}}
         </div>
       </div>
 
-      <!-- Linked Solutions -->
+      <!-- Solutions -->
       <div class="subsection">
-        <div class="subsection-title">Solutions (2)</div>
+        <div class="subsection-title">Solutions ({{solutionCount}})</div>
 
-        <div class="linked-solution-item">
-          <div class="solution-item-dot pending" style="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#e0b030;"></div>
-          <div class="linked-solution-info">
-            <a href="/solution/1" class="linked-solution-name">Logo Concept A — Geometric Mark</a>
-            <div class="linked-solution-meta">By Sam Chen · Apr 15 · 2 files attached</div>
+        {{#if hasSolutions}}
+          {{#each solutions}}
+            <div class="linked-solution-item">
+              <div style="width:12px;height:12px;border-radius:50%;flex-shrink:0;
+                background:{{#if isApproved}}var(--green){{else}}#e0b030{{/if}};
+                box-shadow:0 1px 4px rgba(0,0,0,.15);"></div>
+              <div class="linked-solution-info">
+                <a href="/solution/{{id}}" class="linked-solution-name">{{title}}</a>
+                <div class="linked-solution-meta">
+                  By {{submittedBy.username}} · {{formatDate createdAt}}
+                </div>
+              </div>
+              <span class="badge {{#if isApproved}}badge-approved{{else}}badge-pending{{/if}}">
+                {{status}}
+              </span>
+            </div>
+          {{/each}}
+        {{else}}
+          <div class="empty-state" style="padding:28px 0;">
+            <div class="empty-state-icon">◈</div>
+            <div class="empty-state-title">No solutions yet</div>
+            <div class="empty-state-desc">Be the first to submit a solution to this task.</div>
           </div>
-          <span class="badge badge-pending">Pending</span>
-        </div>
+        {{/if}}
 
-        <div class="linked-solution-item">
-          <div class="solution-item-dot pending" style="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:#e0b030;"></div>
-          <div class="linked-solution-info">
-            <a href="/solution/2" class="linked-solution-name">Logo Concept B — Wordmark</a>
-            <div class="linked-solution-meta">By Maya Patel · Apr 16 · 3 files attached</div>
-          </div>
-          <span class="badge badge-pending">Pending</span>
-        </div>
-
-        <a href="/solution/new?task=1" class="btn btn-outline btn-sm" style="margin-top:4px;">
-          + Submit a Solution
-        </a>
+        {{#if isOpen}}
+          <a href="/solution/new?taskId={{task.id}}&projectId={{task.project.id}}"
+             class="btn btn-outline btn-sm" style="margin-top:10px;">
+            + Submit a Solution
+          </a>
+        {{/if}}
       </div>
     </div>
 
@@ -88,33 +87,51 @@
       <div class="sidebar-box">
         <div class="sidebar-box-title">Assignees</div>
         <div class="sidebar-box-body">
-          <div class="assignee-row">
-            <div class="micro-avatar c-av-teal">S</div>
-            <a href="/profile/schen">Sam Chen</a>
-          </div>
-          <div class="assignee-row">
-            <div class="micro-avatar c-av-blue">M</div>
-            <a href="/profile/mpatel">Maya Patel</a>
-          </div>
+          {{#if task.assignees.length}}
+            {{#each task.assignees}}
+              <div class="assignee-row">
+                <div class="micro-avatar {{avatarColor username}}">{{initial username}}</div>
+                {{username}}
+              </div>
+            {{/each}}
+          {{else}}
+            <span class="text-muted text-sm">No assignees.</span>
+          {{/if}}
         </div>
       </div>
 
       <div class="sidebar-box">
         <div class="sidebar-box-title">Status</div>
         <div class="sidebar-box-body">
-          <span class="badge badge-open" style="margin-bottom:10px;display:inline-flex;">Open</span>
-          <br/>
-          <button class="btn btn-secondary btn-sm btn-block" style="margin-top:4px;">
-            Close Task
-          </button>
+          <span class="badge {{#if isOpen}}badge-open{{else}}badge-closed{{/if}}"
+                style="margin-bottom:10px;display:inline-flex;">
+            {{#if isOpen}}Open{{else}}Closed{{/if}}
+          </span>
+          {{#if isOwner}}
+            <br/>
+            {{#if isOpen}}
+              <form action="/task/{{task.id}}/close" method="POST" style="display:contents">
+                <button class="btn btn-secondary btn-sm btn-block" style="margin-top:6px;">
+                  Close Task
+                </button>
+              </form>
+            {{else}}
+              <form action="/task/{{task.id}}/reopen" method="POST" style="display:contents">
+                <button class="btn btn-secondary btn-sm btn-block" style="margin-top:6px;">
+                  Reopen Task
+                </button>
+              </form>
+            {{/if}}
+          {{/if}}
         </div>
       </div>
 
       <div class="sidebar-box">
         <div class="sidebar-box-title">Project</div>
         <div class="sidebar-box-body">
-          <a href="/project/1" style="font-size:13px;font-weight:600;">Brand Refresh 2026</a>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">by ariandjahed</div>
+          <a href="/project/{{task.project.id}}" style="font-size:13px;font-weight:600;">
+            {{task.project.title}}
+          </a>
         </div>
       </div>
 

@@ -11,7 +11,7 @@ const bcrypt = require('bcrypt');
 const hbs = require('hbs');
 
 const sequelize = require('./db');
-const { User, Project, ProjectMember, ProjectStar, Task, Solution, Contribution } = require('./models/index');
+const { User, Project, ProjectMember, ProjectStar, Task, TaskAssignee, Solution, SolutionFile, Contribution } = require('./models/index');
 
 const app = express();
 
@@ -376,14 +376,263 @@ app.post('/project/:id/unstar', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ── Task & Solution placeholders (to be expanded next) ────────────────────────
+// ── Tasks ─────────────────────────────────────────────────────────────────────
 
-app.get('/task/:id', requireAuth, (req, res) => {
-  res.render('task', { title: 'Task' });
+app.get('/project/:id/task/new', requireAuth, async (req, res, next) => {
+  try {
+    const project = await Project.findByPk(req.params.id, {
+      include: [{ model: User, as: 'members', attributes: ['id', 'username'], through: { attributes: [] } }]
+    });
+    if (!project) return next(createError(404));
+    const isMember = project.members.some(m => m.id === req.session.userId);
+    if (!isMember) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+    res.render('task-new', {
+      title: 'New Task',
+      project: project.toJSON(),
+      members: project.members.map(m => m.toJSON())
+    });
+  } catch (e) { next(e); }
 });
 
-app.get('/solution/:id', requireAuth, (req, res) => {
-  res.render('solution', { title: 'Solution' });
+app.post('/project/:id/task', requireAuth, async (req, res, next) => {
+  const { title, description } = req.body;
+  let assigneeIds = req.body.assignees || [];
+  if (!Array.isArray(assigneeIds)) assigneeIds = [assigneeIds];
+  assigneeIds = assigneeIds.map(id => parseInt(id)).filter(Boolean);
+
+  try {
+    const project = await Project.findByPk(req.params.id, {
+      include: [{ model: User, as: 'members', attributes: ['id', 'username'], through: { attributes: [] } }]
+    });
+    if (!project) return next(createError(404));
+    const isMember = project.members.some(m => m.id === req.session.userId);
+    if (!isMember) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+
+    if (!title || !title.trim()) {
+      return res.render('task-new', {
+        title: 'New Task',
+        project: project.toJSON(),
+        members: project.members.map(m => m.toJSON()),
+        error: 'A task title is required.',
+        description
+      });
+    }
+
+    const task = await Task.create({
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      status: 'open',
+      projectId: project.id,
+      createdById: req.session.userId
+    });
+
+    // Assign selected members (validate they are project members)
+    const validMemberIds = project.members.map(m => m.id);
+    const validAssignees = assigneeIds.filter(id => validMemberIds.includes(id));
+    await Promise.all(validAssignees.map(userId =>
+      TaskAssignee.create({ taskId: task.id, userId })
+    ));
+
+    // Log contribution for the task creator
+    await Contribution.create({
+      type: 'task_created',
+      referenceId: task.id,
+      userId: req.session.userId,
+      projectId: project.id
+    });
+
+    res.redirect(`/task/${task.id}`);
+  } catch (e) { next(e); }
+});
+
+app.get('/task/:id', requireAuth, async (req, res, next) => {
+  try {
+    const task = await Task.findByPk(req.params.id, {
+      include: [
+        { model: User,    as: 'creator',   attributes: ['id', 'username'] },
+        { model: User,    as: 'assignees', attributes: ['id', 'username'], through: { attributes: [] } },
+        { model: Project, as: 'project',   attributes: ['id', 'title', 'ownerId'] }
+      ]
+    });
+    if (!task) return next(createError(404));
+
+    const membership = await ProjectMember.findOne({
+      where: { userId: req.session.userId, projectId: task.projectId }
+    });
+    if (!membership) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+
+    const solutions = await Solution.findAll({
+      where: { taskId: task.id },
+      include: [{ model: User, as: 'submittedBy', attributes: ['username'] }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const isOwner = task.project.ownerId === req.session.userId;
+    const isOpen  = task.status === 'open';
+
+    res.render('task', {
+      title: task.title,
+      task: task.toJSON(),
+      isOwner,
+      isOpen,
+      solutions: solutions.map(s => ({
+        ...s.toJSON(),
+        isApproved: s.status === 'approved',
+        isPending:  s.status === 'pending'
+      })),
+      hasSolutions:  solutions.length > 0,
+      solutionCount: solutions.length
+    });
+  } catch (e) { next(e); }
+});
+
+app.post('/task/:id/close', requireAuth, async (req, res, next) => {
+  try {
+    const task = await Task.findByPk(req.params.id, {
+      include: [{ model: Project, as: 'project', attributes: ['ownerId'] }]
+    });
+    if (!task) return next(createError(404));
+    if (task.project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can close tasks.', error: {} });
+    }
+    await task.update({ status: 'closed' });
+    res.redirect(`/task/${task.id}`);
+  } catch (e) { next(e); }
+});
+
+app.post('/task/:id/reopen', requireAuth, async (req, res, next) => {
+  try {
+    const task = await Task.findByPk(req.params.id, {
+      include: [{ model: Project, as: 'project', attributes: ['ownerId'] }]
+    });
+    if (!task) return next(createError(404));
+    if (task.project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can reopen tasks.', error: {} });
+    }
+    await task.update({ status: 'open' });
+    res.redirect(`/task/${task.id}`);
+  } catch (e) { next(e); }
+});
+
+// ── Solutions ─────────────────────────────────────────────────────────────────
+
+// IMPORTANT: /solution/new must be defined before /solution/:id
+app.get('/solution/new', requireAuth, async (req, res, next) => {
+  const { taskId, projectId } = req.query;
+  if (!taskId || !projectId) return next(createError(400));
+  try {
+    const task = await Task.findByPk(taskId, {
+      include: [{ model: Project, as: 'project', attributes: ['id', 'title', 'ownerId'] }]
+    });
+    if (!task || task.projectId !== parseInt(projectId)) return next(createError(404));
+    if (task.status !== 'open') {
+      return res.status(400).render('error', { message: 'Cannot submit a solution to a closed task.', error: {} });
+    }
+    const membership = await ProjectMember.findOne({ where: { userId: req.session.userId, projectId: task.projectId } });
+    if (!membership) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+    res.render('solution-new', { title: 'New Solution', task: task.toJSON() });
+  } catch (e) { next(e); }
+});
+
+app.post('/solution', requireAuth, async (req, res, next) => {
+  const { title, description, taskId } = req.body;
+  try {
+    const task = await Task.findByPk(taskId, {
+      include: [{ model: Project, as: 'project', attributes: ['id', 'title', 'ownerId'] }]
+    });
+    if (!task) return next(createError(404));
+    if (task.status !== 'open') {
+      return res.status(400).render('error', { message: 'Cannot submit a solution to a closed task.', error: {} });
+    }
+    const membership = await ProjectMember.findOne({ where: { userId: req.session.userId, projectId: task.projectId } });
+    if (!membership) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+    if (!title || !title.trim()) {
+      return res.render('solution-new', {
+        title: 'New Solution', task: task.toJSON(),
+        error: 'A solution title is required.', description
+      });
+    }
+    const solution = await Solution.create({
+      title: title.trim(),
+      description: description ? description.trim() : null,
+      status: 'pending',
+      taskId: task.id,
+      projectId: task.projectId,
+      submittedById: req.session.userId
+    });
+    await Contribution.create({
+      type: 'solution_submitted', referenceId: solution.id,
+      userId: req.session.userId, projectId: task.projectId
+    });
+    res.redirect(`/solution/${solution.id}`);
+  } catch (e) { next(e); }
+});
+
+app.get('/solution/:id', requireAuth, async (req, res, next) => {
+  try {
+    const solution = await Solution.findByPk(req.params.id, {
+      include: [
+        { model: User,         as: 'submittedBy', attributes: ['id', 'username'] },
+        { model: Task,         as: 'task',        attributes: ['id', 'title', 'status'] },
+        { model: Project,      as: 'project',     attributes: ['id', 'title', 'ownerId'] },
+        { model: SolutionFile, as: 'files' }
+      ]
+    });
+    if (!solution) return next(createError(404));
+    const membership = await ProjectMember.findOne({ where: { userId: req.session.userId, projectId: solution.projectId } });
+    if (!membership) {
+      return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
+    }
+    const isOwner    = solution.project.ownerId === req.session.userId;
+    const isPending  = solution.status === 'pending';
+    const isApproved = solution.status === 'approved';
+    const isRejected = solution.status === 'rejected';
+    res.render('solution', {
+      title: solution.title,
+      solution: solution.toJSON(),
+      isOwner, isPending, isApproved, isRejected,
+      hasFiles: solution.files.length > 0
+    });
+  } catch (e) { next(e); }
+});
+
+app.post('/solution/:id/approve', requireAuth, async (req, res, next) => {
+  try {
+    const solution = await Solution.findByPk(req.params.id, {
+      include: [{ model: Project, as: 'project', attributes: ['ownerId'] }]
+    });
+    if (!solution) return next(createError(404));
+    if (solution.project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can approve solutions.', error: {} });
+    }
+    await solution.update({ status: 'approved' });
+    await Task.update({ status: 'closed' }, { where: { id: solution.taskId } });
+    res.redirect(`/solution/${solution.id}`);
+  } catch (e) { next(e); }
+});
+
+app.post('/solution/:id/reject', requireAuth, async (req, res, next) => {
+  try {
+    const solution = await Solution.findByPk(req.params.id, {
+      include: [{ model: Project, as: 'project', attributes: ['ownerId'] }]
+    });
+    if (!solution) return next(createError(404));
+    if (solution.project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can reject solutions.', error: {} });
+    }
+    await solution.update({ status: 'rejected' });
+    res.redirect(`/solution/${solution.id}`);
+  } catch (e) { next(e); }
 });
 
 // ── Error handling ────────────────────────────────────────────────────────────

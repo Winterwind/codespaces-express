@@ -342,6 +342,34 @@ textarea.form-input {
   line-height: 1.6;
 }
 
+.member-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.member-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+.member-check-item:hover {
+  border-color: var(--teal);
+  background: var(--teal-light);
+}
+.member-check-item input[type="checkbox"] {
+  accent-color: var(--teal);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 /* ============================================================
    Buttons
    ============================================================ */
@@ -454,8 +482,9 @@ textarea.form-input {
 .badge-gray    { background: #edf2f4; color: var(--text-muted); }
 .badge-open    { background: var(--teal-light);  color: var(--teal-dark); }
 .badge-closed  { background: #edf2f4; color: var(--text-muted); }
-.badge-approved{ background: var(--green-light); color: #2f8a52; }
-.badge-pending { background: #fff8e2; color: #b07a10; }
+.badge-approved  { background: var(--green-light); color: #2f8a52; }
+.badge-pending   { background: #fff8e2; color: #b07a10; }
+.badge-rejected  { background: #fdecea; color: #c0392b; }
 
 /* ============================================================
    Profile Page
@@ -1208,7 +1237,7 @@ textarea.form-input {
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: border-color var(--transition), background var(--transition);
+  transition: border-color var(--transition), background-color var(--transition);
 }
 .file-item:hover {
   border-color: var(--teal);

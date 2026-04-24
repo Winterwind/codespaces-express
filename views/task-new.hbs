@@ -1,0 +1,59 @@
+<div class="detail-wrap" style="max-width:680px;">
+  <nav class="breadcrumb">
+    <a href="/profile">Profile</a>
+    <span class="breadcrumb-sep">/</span>
+    <a href="/project/{{project.id}}">{{project.title}}</a>
+    <span class="breadcrumb-sep">/</span>
+    <span>New Task</span>
+  </nav>
+
+  <div style="margin-bottom:24px;">
+    <h1 style="font-size:20px;font-weight:700;margin-bottom:4px;">Create a new task</h1>
+    <p class="text-muted text-sm">Tasks track work that needs to be done. Contributors can submit solutions to open tasks.</p>
+  </div>
+
+  {{#if error}}<div class="auth-error" style="margin-bottom:20px;">{{error}}</div>{{/if}}
+
+  <div class="detail-body">
+    <div class="detail-body-content" style="padding:24px;">
+      <form action="/project/{{project.id}}/task" method="POST">
+        <div class="form-group">
+          <label class="form-label" for="title">Task Title <span style="color:#e53e3e">*</span></label>
+          <input class="form-input" type="text" id="title" name="title"
+                 placeholder="e.g. Design new logo — three concepts needed"
+                 value="{{title}}" required autofocus />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="description">Description <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+          <textarea class="form-input" id="description" name="description"
+                    placeholder="Describe what needs to be done, any requirements, deliverables, etc."
+                    style="min-height:120px;">{{description}}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:24px;">
+          <label class="form-label">Assignees <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+          {{#if members.length}}
+            <div class="member-checklist">
+              {{#each members}}
+                <label class="member-check-item">
+                  <input type="checkbox" name="assignees" value="{{id}}" />
+                  <div class="micro-avatar {{avatarColor username}}">{{initial username}}</div>
+                  <span style="font-size:13px;font-weight:500;color:var(--text-secondary);">{{username}}</span>
+                </label>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="text-muted text-sm">No other members to assign yet.</p>
+          {{/if}}
+        </div>
+
+        <hr class="divider" />
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <a href="/project/{{project.id}}" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

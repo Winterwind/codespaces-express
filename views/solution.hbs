@@ -2,81 +2,101 @@
 
   <!-- Breadcrumb -->
   <nav class="breadcrumb">
-    <a href="/profile">ariandjahed</a>
+    <a href="/profile">Profile</a>
     <span class="breadcrumb-sep">/</span>
-    <a href="/project/1">Brand Refresh 2026</a>
+    <a href="/project/{{solution.project.id}}">{{solution.project.title}}</a>
     <span class="breadcrumb-sep">/</span>
-    <a href="/project/1">Solutions</a>
+    <a href="/project/{{solution.project.id}}">Solutions</a>
     <span class="breadcrumb-sep">/</span>
-    <span>#1</span>
+    <span>#{{solution.id}}</span>
   </nav>
 
   <!-- Title Row -->
   <div class="detail-title-row">
-    <h1 class="detail-title">Logo Concept A — Geometric Mark</h1>
-    <span class="badge badge-pending">Pending</span>
+    <h1 class="detail-title">{{solution.title}}</h1>
+    {{#if isApproved}}
+      <span class="badge badge-approved">Approved</span>
+    {{else}}
+      {{#if isRejected}}
+        <span class="badge badge-rejected">Rejected</span>
+      {{else}}
+        <span class="badge badge-pending">Pending</span>
+      {{/if}}
+    {{/if}}
   </div>
   <div class="detail-meta-line">
-    Solution <strong>#1</strong> submitted <strong>Apr 15, 2026</strong> by
-    <a href="/profile/schen">Sam Chen</a>
-    &nbsp;·&nbsp; for task <a href="/task/1">#1 — Design new logo</a>
+    Solution <strong>#{{solution.id}}</strong> submitted <strong>{{formatDate solution.createdAt}}</strong>
+    by <a href="/profile">{{solution.submittedBy.username}}</a>
+    &nbsp;·&nbsp; for task <a href="/task/{{solution.task.id}}">#{{solution.task.id}} — {{solution.task.title}}</a>
   </div>
 
   <!-- Main Layout -->
   <div class="detail-layout">
 
-    <!-- Body + Files -->
+    <!-- Body + Files + Actions -->
     <div>
       <div class="detail-body">
         <div class="detail-body-header">
-          <span><strong>Sam Chen</strong> described this solution</span>
-          <span>Apr 15, 2026</span>
+          <span><strong>{{solution.submittedBy.username}}</strong> described this solution</span>
+          <span>{{formatDate solution.createdAt}}</span>
         </div>
         <div class="detail-body-content">
-          <p>
-            I've gone with a geometric approach for Concept A — a hexagonal mark that can work
-            as a standalone symbol or alongside the wordmark. The shape conveys structure and
-            precision, which feels appropriate for a task-management brand.
-          </p>
-          <br/>
-          <p>
-            The mark is constructed on a strict grid so it scales cleanly at any size, from
-            favicon down to large print. I've included both the full-colour and monochrome
-            variants in the attached files.
-          </p>
-          <br/>
-          <p>
-            Happy to iterate on spacing, weight, or the angle of the inner lines if needed.
-            Let me know what the team thinks.
-          </p>
+          {{#if solution.description}}
+            {{solution.description}}
+          {{else}}
+            <span class="text-muted">No description provided.</span>
+          {{/if}}
         </div>
       </div>
 
       <!-- File Attachments -->
       <div class="subsection">
-        <div class="subsection-title">Attachments (2)</div>
-        <div class="file-list">
-          <div class="file-item">
-            <div class="file-icon fi-img">SVG</div>
-            <span>logo-concept-a-color.svg</span>
-            <span class="file-size">48 KB</span>
+        <div class="subsection-title">Attachments ({{solution.files.length}})</div>
+        {{#if hasFiles}}
+          <div class="file-list">
+            {{#each solution.files}}
+              <div class="file-item">
+                <div class="file-icon fi-doc">FILE</div>
+                <span>{{originalName}}</span>
+                <span class="file-size">{{size}} bytes</span>
+              </div>
+            {{/each}}
           </div>
-          <div class="file-item">
-            <div class="file-icon fi-img">PNG</div>
-            <span>logo-concept-a-mono.png</span>
-            <span class="file-size">112 KB</span>
-          </div>
-        </div>
+        {{else}}
+          <p class="text-muted text-sm" style="padding:4px 0;">
+            No files attached. File upload support is coming soon.
+          </p>
+        {{/if}}
       </div>
 
-      <!-- Approve / Reject actions -->
-      <div class="solution-actions">
-        <p class="solution-actions-note">
-          Only the project owner can approve a solution. Approving will close the linked task.
-        </p>
-        <button class="btn btn-approve">✓ Approve Solution</button>
-        <button class="btn btn-danger btn-sm">✕ Reject</button>
-      </div>
+      <!-- Approve / Reject -->
+      {{#if isOwner}}
+        {{#if isPending}}
+          <div class="solution-actions">
+            <p class="solution-actions-note">
+              Approving this solution will close task
+              <a href="/task/{{solution.task.id}}">#{{solution.task.id}}</a>.
+            </p>
+            <form action="/solution/{{solution.id}}/approve" method="POST" style="display:contents">
+              <button class="btn btn-approve btn-sm">✓ Approve</button>
+            </form>
+            <form action="/solution/{{solution.id}}/reject" method="POST" style="display:contents"
+                  onsubmit="return confirm('Reject this solution?')">
+              <button class="btn btn-danger btn-sm">✕ Reject</button>
+            </form>
+          </div>
+        {{/if}}
+        {{#if isApproved}}
+          <div class="solution-actions">
+            <p class="solution-actions-note">This solution has been approved and its task is now closed.</p>
+          </div>
+        {{/if}}
+        {{#if isRejected}}
+          <div class="solution-actions">
+            <p class="solution-actions-note">This solution has been rejected.</p>
+          </div>
+        {{/if}}
+      {{/if}}
     </div>
 
     <!-- Sidebar -->
@@ -86,8 +106,10 @@
         <div class="sidebar-box-title">Submitted By</div>
         <div class="sidebar-box-body">
           <div class="assignee-row">
-            <div class="micro-avatar c-av-teal">S</div>
-            <a href="/profile/schen">Sam Chen</a>
+            <div class="micro-avatar {{avatarColor solution.submittedBy.username}}">
+              {{initial solution.submittedBy.username}}
+            </div>
+            {{solution.submittedBy.username}}
           </div>
         </div>
       </div>
@@ -95,9 +117,15 @@
       <div class="sidebar-box">
         <div class="sidebar-box-title">Linked Task</div>
         <div class="sidebar-box-body">
-          <a href="/task/1" style="font-size:13px;font-weight:600;">#1 — Design new logo</a>
+          <a href="/task/{{solution.task.id}}" style="font-size:13px;font-weight:600;">
+            #{{solution.task.id}} — {{solution.task.title}}
+          </a>
           <div style="margin-top:6px;">
-            <span class="badge badge-open">Open</span>
+            {{#if (eq solution.task.status "open")}}
+              <span class="badge badge-open">Open</span>
+            {{else}}
+              <span class="badge badge-closed">Closed</span>
+            {{/if}}
           </div>
         </div>
       </div>
@@ -105,18 +133,24 @@
       <div class="sidebar-box">
         <div class="sidebar-box-title">Status</div>
         <div class="sidebar-box-body">
-          <span class="badge badge-pending" style="display:inline-flex;margin-bottom:8px;">Pending Review</span>
-          <div style="font-size:12px;color:var(--text-muted);">
-            Awaiting approval from project owner.
-          </div>
+          {{#if isApproved}}
+            <span class="badge badge-approved" style="display:inline-flex;">Approved</span>
+          {{else}}
+            {{#if isRejected}}
+              <span class="badge badge-rejected" style="display:inline-flex;">Rejected</span>
+            {{else}}
+              <span class="badge badge-pending" style="display:inline-flex;">Pending Review</span>
+            {{/if}}
+          {{/if}}
         </div>
       </div>
 
       <div class="sidebar-box">
         <div class="sidebar-box-title">Project</div>
         <div class="sidebar-box-body">
-          <a href="/project/1" style="font-size:13px;font-weight:600;">Brand Refresh 2026</a>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">by ariandjahed</div>
+          <a href="/project/{{solution.project.id}}" style="font-size:13px;font-weight:600;">
+            {{solution.project.title}}
+          </a>
         </div>
       </div>
 
