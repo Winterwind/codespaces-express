@@ -56,16 +56,23 @@
           <div class="file-list">
             {{#each solution.files}}
               <div class="file-item">
-                <div class="file-icon fi-doc">FILE</div>
-                <span>{{originalName}}</span>
-                <span class="file-size">{{size}} bytes</span>
+                <a href="/solution/{{../solution.id}}/file/{{id}}" class="file-item-link">
+                  <div class="file-icon {{fileIconClass mimeType}}">{{fileIconLabel mimeType}}</div>
+                  <span class="file-name">{{originalName}}</span>
+                </a>
+                <span class="file-size">{{formatSize size}}</span>
+                {{#if ../canDeleteFiles}}
+                  <form action="/solution/{{../solution.id}}/file/{{id}}/delete" method="POST"
+                        style="display:contents"
+                        onsubmit="return confirm('Delete {{originalName}}?')">
+                    <button class="file-delete-btn" title="Delete file">×</button>
+                  </form>
+                {{/if}}
               </div>
             {{/each}}
           </div>
         {{else}}
-          <p class="text-muted text-sm" style="padding:4px 0;">
-            No files attached. File upload support is coming soon.
-          </p>
+          <p class="text-muted text-sm" style="padding:4px 0;">No files attached to this solution.</p>
         {{/if}}
       </div>
 

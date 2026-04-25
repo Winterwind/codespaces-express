@@ -1349,13 +1349,81 @@ textarea.form-input {
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text-secondary);
-  cursor: pointer;
   transition: border-color var(--transition), background-color var(--transition);
 }
 .file-item:hover {
   border-color: var(--teal);
   background: var(--teal-light);
+}
+
+.file-item-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--text-secondary);
+}
+.file-item:hover .file-item-link { color: var(--teal); }
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-delete-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: border-color var(--transition), color var(--transition), background-color var(--transition);
+}
+.file-delete-btn:hover {
+  border-color: #e53e3e;
+  color: #e53e3e;
+  background: #fdf0ee;
+}
+
+/* File upload input on solution-new form */
+.file-upload-input {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  cursor: pointer;
+}
+.file-upload-input::file-selector-button {
+  padding: 5px 13px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--teal);
+  background: var(--teal-light);
   color: var(--teal);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background-color var(--transition), color var(--transition);
+}
+.file-upload-input::file-selector-button:hover {
+  background: var(--teal);
+  color: white;
+}
+
+.form-label-note {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .file-icon {

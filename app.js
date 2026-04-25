@@ -10,8 +10,10 @@ const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const bcrypt = require('bcrypt');
 const hbs = require('hbs');
 
+const fs   = require('fs');
 const { Op } = require('sequelize');
 const sequelize = require('./db');
+const multer = require('multer');
 const { User, Project, ProjectMember, ProjectStar, Task, TaskAssignee, Solution, SolutionFile, Contribution } = require('./models/index');
 
 const app = express();
@@ -39,6 +41,44 @@ hbs.registerHelper('avatarColor', (username) => {
 hbs.registerHelper('initial', (str) => (str ? str[0].toUpperCase() : '?'));
 hbs.registerHelper('eq',      (a, b) => a === b);
 hbs.registerHelper('gt',      (a, b) => a > b);
+
+hbs.registerHelper('formatSize', (bytes) => {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+});
+
+hbs.registerHelper('fileIconClass', (mime) => {
+  if (!mime) return 'fi-doc';
+  if (mime.startsWith('image/')) return 'fi-img';
+  if (mime === 'application/pdf') return 'fi-pdf';
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('x-tar')) return 'fi-zip';
+  return 'fi-doc';
+});
+
+hbs.registerHelper('fileIconLabel', (mime) => {
+  if (!mime) return 'FILE';
+  if (mime.startsWith('image/')) return 'IMG';
+  if (mime === 'application/pdf') return 'PDF';
+  if (mime.includes('zip') || mime.includes('compressed') || mime.includes('x-tar')) return 'ZIP';
+  return 'FILE';
+});
+
+// ── File upload (multer) ──────────────────────────────────────────────────────
+const uploadDir = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename:    (req, file, cb) => {
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, unique + path.extname(file.originalname));
+    }
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB per file
+});
 
 // ── Core middleware ───────────────────────────────────────────────────────────
 app.use(logger('dev'));
@@ -666,21 +706,26 @@ app.get('/solution/new', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.post('/solution', requireAuth, async (req, res, next) => {
+app.post('/solution', requireAuth, upload.array('files', 5), async (req, res, next) => {
   const { title, description, taskId } = req.body;
+  const cleanupFiles = () => (req.files || []).forEach(f => fs.unlink(f.path, () => {}));
+
   try {
     const task = await Task.findByPk(taskId, {
       include: [{ model: Project, as: 'project', attributes: ['id', 'title', 'ownerId'] }]
     });
-    if (!task) return next(createError(404));
+    if (!task) { cleanupFiles(); return next(createError(404)); }
     if (task.status !== 'open') {
+      cleanupFiles();
       return res.status(400).render('error', { message: 'Cannot submit a solution to a closed task.', error: {} });
     }
     const membership = await ProjectMember.findOne({ where: { userId: req.session.userId, projectId: task.projectId } });
     if (!membership) {
+      cleanupFiles();
       return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
     }
     if (!title || !title.trim()) {
+      cleanupFiles();
       return res.render('solution-new', {
         title: 'New Solution', task: task.toJSON(),
         error: 'A solution title is required.', description
@@ -694,12 +739,21 @@ app.post('/solution', requireAuth, async (req, res, next) => {
       projectId: task.projectId,
       submittedById: req.session.userId
     });
+    if (req.files && req.files.length > 0) {
+      await Promise.all(req.files.map(f => SolutionFile.create({
+        filename:     f.filename,
+        originalName: f.originalname,
+        mimeType:     f.mimetype,
+        size:         f.size,
+        solutionId:   solution.id
+      })));
+    }
     await Contribution.create({
       type: 'solution_submitted', referenceId: solution.id,
       userId: req.session.userId, projectId: task.projectId
     });
     res.redirect(`/solution/${solution.id}`);
-  } catch (e) { next(e); }
+  } catch (e) { cleanupFiles(); next(e); }
 });
 
 app.get('/solution/:id', requireAuth, async (req, res, next) => {
@@ -717,14 +771,17 @@ app.get('/solution/:id', requireAuth, async (req, res, next) => {
     if (!membership) {
       return res.status(403).render('error', { message: 'You are not a member of this project.', error: {} });
     }
-    const isOwner    = solution.project.ownerId === req.session.userId;
-    const isPending  = solution.status === 'pending';
-    const isApproved = solution.status === 'approved';
-    const isRejected = solution.status === 'rejected';
+    const isOwner      = solution.project.ownerId === req.session.userId;
+    const isSubmitter  = solution.submittedById === req.session.userId;
+    const isPending    = solution.status === 'pending';
+    const isApproved   = solution.status === 'approved';
+    const isRejected   = solution.status === 'rejected';
     res.render('solution', {
       title: solution.title,
       solution: solution.toJSON(),
-      isOwner, isPending, isApproved, isRejected,
+      isOwner, isSubmitter,
+      canDeleteFiles: isOwner || isSubmitter,
+      isPending, isApproved, isRejected,
       hasFiles: solution.files.length > 0
     });
   } catch (e) { next(e); }
@@ -756,6 +813,50 @@ app.post('/solution/:id/reject', requireAuth, async (req, res, next) => {
     }
     await solution.update({ status: 'rejected' });
     res.redirect(`/solution/${solution.id}`);
+  } catch (e) { next(e); }
+});
+
+// ── Solution file routes ──────────────────────────────────────────────────────
+
+app.get('/solution/:id/file/:fileId', requireAuth, async (req, res, next) => {
+  try {
+    const file = await SolutionFile.findByPk(req.params.fileId, {
+      include: [{ model: Solution, as: 'solution', attributes: ['id', 'projectId'] }]
+    });
+    if (!file || String(file.solution.id) !== req.params.id) return next(createError(404));
+
+    const membership = await ProjectMember.findOne({
+      where: { userId: req.session.userId, projectId: file.solution.projectId }
+    });
+    if (!membership) {
+      return res.status(403).render('error', { message: 'Access denied.', error: {} });
+    }
+
+    const filePath = path.join(uploadDir, file.filename);
+    res.download(filePath, file.originalName);
+  } catch (e) { next(e); }
+});
+
+app.post('/solution/:id/file/:fileId/delete', requireAuth, async (req, res, next) => {
+  try {
+    const file = await SolutionFile.findByPk(req.params.fileId, {
+      include: [{
+        model: Solution, as: 'solution',
+        attributes: ['id', 'projectId', 'submittedById'],
+        include: [{ model: Project, as: 'project', attributes: ['ownerId'] }]
+      }]
+    });
+    if (!file || String(file.solution.id) !== req.params.id) return next(createError(404));
+
+    const isOwner     = file.solution.project.ownerId  === req.session.userId;
+    const isSubmitter = file.solution.submittedById     === req.session.userId;
+    if (!isOwner && !isSubmitter) {
+      return res.status(403).render('error', { message: 'You cannot delete this file.', error: {} });
+    }
+
+    fs.unlink(path.join(uploadDir, file.filename), () => {});
+    await file.destroy();
+    res.redirect(`/solution/${req.params.id}`);
   } catch (e) { next(e); }
 });
 
