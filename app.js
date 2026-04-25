@@ -335,7 +335,7 @@ app.get('/project/:id', requireAuth, async (req, res, next) => {
           weeklyData.push(weekTotal);
         }
 
-        return { username: m.username, count, dailyLabels, dailyData, weeklyLabels, weeklyData };
+        return { username: m.username, userId: m.id, count, dailyLabels, dailyData, weeklyLabels, weeklyData };
       })
     );
     rawContributors.sort((a, b) => b.count - a.count);
@@ -343,6 +343,8 @@ app.get('/project/:id', requireAuth, async (req, res, next) => {
     const contributors = rawContributors.map((c, i) => ({
       rank: i + 1,
       username: c.username,
+      userId: c.userId,
+      isProjectOwner: c.userId === project.ownerId,
       count: c.count,
       barPercent: maxCount > 0 ? Math.round((c.count / maxCount) * 100) : 0,
       chartDailyLabels:  JSON.stringify(c.dailyLabels),
@@ -379,7 +381,8 @@ app.get('/project/:id', requireAuth, async (req, res, next) => {
       openTaskCount,
       closedTaskCount,
       solutionCount: solutions.length,
-      memberCount:   project.members.length
+      memberCount:   project.members.length,
+      inviteError:   req.query.inviteError || null
     });
   } catch (e) {
     next(e);
@@ -449,6 +452,51 @@ app.post('/project/:id/unstar', requireAuth, async (req, res, next) => {
   try {
     await ProjectStar.destroy({ where: { userId: req.session.userId, projectId: req.params.id } });
     res.redirect(`/project/${req.params.id}`);
+  } catch (e) { next(e); }
+});
+
+app.post('/project/:id/invite', requireAuth, async (req, res, next) => {
+  const { username } = req.body;
+  const projectId = req.params.id;
+  const fail = (msg) => res.redirect(`/project/${projectId}?inviteError=${encodeURIComponent(msg)}`);
+
+  try {
+    const project = await Project.findByPk(projectId);
+    if (!project) return next(createError(404));
+    if (project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can invite members.', error: {} });
+    }
+    if (!username || !username.trim()) return fail('Please enter a username.');
+
+    const invitee = await User.findOne({ where: { username: username.trim() } });
+    if (!invitee) return fail('No user found with that username.');
+    if (invitee.id === req.session.userId) return fail('You are already a member of this project.');
+
+    const existing = await ProjectMember.findOne({ where: { userId: invitee.id, projectId } });
+    if (existing) return fail(`${invitee.username} is already a member of this project.`);
+
+    await ProjectMember.create({ userId: invitee.id, projectId, role: 'member' });
+    res.redirect(`/project/${projectId}`);
+  } catch (e) { next(e); }
+});
+
+app.post('/project/:id/remove-member', requireAuth, async (req, res, next) => {
+  const { userId } = req.body;
+  const projectId = req.params.id;
+
+  try {
+    const project = await Project.findByPk(projectId);
+    if (!project) return next(createError(404));
+    if (project.ownerId !== req.session.userId) {
+      return res.status(403).render('error', { message: 'Only the project owner can remove members.', error: {} });
+    }
+    const targetId = parseInt(userId);
+    if (targetId === project.ownerId) return res.redirect(`/project/${projectId}`);
+
+    await ProjectMember.destroy({ where: { userId: targetId, projectId } });
+    // Also clean up their stars on this project
+    await ProjectStar.destroy({ where: { userId: targetId, projectId } });
+    res.redirect(`/project/${projectId}`);
   } catch (e) { next(e); }
 });
 

@@ -158,6 +158,20 @@
 
   <!-- Contributors Tab -->
   <div class="tab-panel" data-tab-panel="project" data-panel="contributors">
+
+    {{#if isOwner}}
+      <div class="invite-section">
+        {{#if inviteError}}
+          <div class="invite-error">{{inviteError}}</div>
+        {{/if}}
+        <form action="/project/{{project.id}}/invite" method="POST" class="invite-form">
+          <input type="text" name="username" class="form-input invite-input"
+                 placeholder="Invite by username…" autocomplete="off" required />
+          <button type="submit" class="btn btn-primary btn-sm">Invite</button>
+        </form>
+      </div>
+    {{/if}}
+
     {{#if hasContributors}}
       <div class="contrib-toolbar">
         <span class="contrib-period-label">Activity period:</span>
@@ -182,6 +196,15 @@
                 <div class="contributor-bar-fill" style="width:{{barPercent}}%"></div>
               </div>
               <div class="contributor-count">{{count}} <span>contributions</span></div>
+              {{#if ../isOwner}}
+                {{#unless isProjectOwner}}
+                  <form action="/project/{{../project.id}}/remove-member" method="POST" style="display:contents"
+                        onsubmit="return confirm('Remove {{username}} from this project?')">
+                    <input type="hidden" name="userId" value="{{userId}}" />
+                    <button class="btn btn-danger btn-sm">Remove</button>
+                  </form>
+                {{/unless}}
+              {{/if}}
             </div>
             <div class="contributor-chart-wrap">
               <canvas class="contributor-chart"
@@ -196,8 +219,8 @@
     {{else}}
       <div class="empty-state">
         <div class="empty-state-icon">◉</div>
-        <div class="empty-state-title">No contributions yet</div>
-        <div class="empty-state-desc">Contributions are logged when tasks are created, solutions are submitted, or the project is edited.</div>
+        <div class="empty-state-title">No contributors yet</div>
+        <div class="empty-state-desc">Invite collaborators above to get started.</div>
       </div>
     {{/if}}
   </div>
