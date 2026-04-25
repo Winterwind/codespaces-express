@@ -3,3 +3,4 @@ data/
 .env
 CLAUDE.*
 claude/*
+.DS_Store
