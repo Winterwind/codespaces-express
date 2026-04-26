@@ -1,4 +1,10 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // Reformat server-rendered dates using browser's local timezone
+  document.querySelectorAll('time[data-fmt="date"]').forEach(function (el) {
+    const d = new Date(el.getAttribute('datetime'));
+    el.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  });
+
   // Tab switching for any [data-tab-group] container
   document.querySelectorAll('[data-tab-group]').forEach(function (group) {
     const groupId = group.dataset.tabGroup;

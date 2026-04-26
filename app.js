@@ -25,7 +25,10 @@ app.set('view engine', 'hbs');
 // ── Handlebars helpers ────────────────────────────────────────────────────────
 hbs.registerHelper('formatDate', (date) => {
   if (!date) return '';
-  return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const iso = new Date(date).toISOString();
+  return new hbs.SafeString(
+    `<time data-fmt="date" datetime="${iso}">${iso.slice(0, 10)}</time>`
+  );
 });
 
 // Deterministic avatar colour class based on username
