@@ -376,29 +376,26 @@ app.get('/project/:id', requireAuth, async (req, res, next) => {
         const dayMap = {};
         dailyRows.forEach(r => { dayMap[r.day] = parseInt(r.cnt); });
 
-        // 30-day daily array
-        const dailyLabels = [], dailyData = [];
+        // 30-day daily array (values only — labels generated client-side)
+        const dailyData = [];
         for (let i = 29; i >= 0; i--) {
           const d = new Date(now); d.setDate(now.getDate() - i);
           const key = d.toISOString().slice(0, 10);
-          dailyLabels.push(key.slice(5)); // MM-DD
           dailyData.push(dayMap[key] || 0);
         }
 
-        // 8-week weekly array (aggregated from daily data)
-        const weeklyLabels = [], weeklyData = [];
+        // 8-week weekly array (values only — labels generated client-side)
+        const weeklyData = [];
         for (let w = 7; w >= 0; w--) {
           let weekTotal = 0;
           for (let d = 0; d < 7; d++) {
             const day = new Date(now); day.setDate(now.getDate() - (w * 7 + d));
             weekTotal += dayMap[day.toISOString().slice(0, 10)] || 0;
           }
-          const firstDay = new Date(now); firstDay.setDate(now.getDate() - (w * 7 + 6));
-          weeklyLabels.push(`${firstDay.getMonth() + 1}/${firstDay.getDate()}`);
           weeklyData.push(weekTotal);
         }
 
-        return { username: m.username, userId: m.id, count, dailyLabels, dailyData, weeklyLabels, weeklyData };
+        return { username: m.username, userId: m.id, count, dailyData, weeklyData };
       })
     );
     rawContributors.sort((a, b) => b.count - a.count);
@@ -410,10 +407,8 @@ app.get('/project/:id', requireAuth, async (req, res, next) => {
       isProjectOwner: c.userId === project.ownerId,
       count: c.count,
       barPercent: maxCount > 0 ? Math.round((c.count / maxCount) * 100) : 0,
-      chartDailyLabels:  JSON.stringify(c.dailyLabels),
-      chartDailyData:    JSON.stringify(c.dailyData),
-      chartWeeklyLabels: JSON.stringify(c.weeklyLabels),
-      chartWeeklyData:   JSON.stringify(c.weeklyData)
+      chartDailyData:   JSON.stringify(c.dailyData),
+      chartWeeklyData:  JSON.stringify(c.weeklyData)
     }));
 
     const openTaskCount   = tasks.filter(t => t.status === 'open').length;

@@ -8,11 +8,30 @@
   let charts = [];
   let currentPeriod = 'daily';
 
+  function makeDailyLabels() {
+    const labels = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+      labels.push((d.getMonth() + 1) + '/' + d.getDate());
+    }
+    return labels;
+  }
+
+  function makeWeeklyLabels() {
+    const labels = [];
+    const today = new Date();
+    for (let w = 7; w >= 0; w--) {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (w * 7 + 6));
+      labels.push((d.getMonth() + 1) + '/' + d.getDate());
+    }
+    return labels;
+  }
+
   function buildChart(canvas, period) {
-    const labelKey = period === 'daily' ? 'dailyLabels' : 'weeklyLabels';
     const valueKey = period === 'daily' ? 'dailyValues' : 'weeklyValues';
 
-    const labels = JSON.parse(canvas.dataset[labelKey]);
+    const labels = period === 'daily' ? makeDailyLabels() : makeWeeklyLabels();
     const values = JSON.parse(canvas.dataset[valueKey]);
 
     return new Chart(canvas, {
